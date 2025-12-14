@@ -1,0 +1,12 @@
+fastapi==0.104.1             # Основной фреймворк
+uvicorn[standard]==0.24.0.post1 # ASGI-сервер для запуска FastAPI
+SQLAlchemy==2.0.23           # ORM для работы с БД
+psycopg2-binary==2.9.9       # PostgreSQL-драйвер
+pydantic==2.5.2              # Валидация данных
+pydantic-settings==2.1.0     # Управление настройками из .env
+python-jose[cryptography]==3.3.0 # Для JWT-токенов (авторизация)
+passlib[bcrypt]==1.7.4       # Для хеширования паролей
+python-multipart==0.0.6      # Для обработки загрузки файлов (видео)
+email-validator
+bcrypt==4.0.1
+httpx

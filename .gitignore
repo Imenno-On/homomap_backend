@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.venv/
+venv/
+ENV/
+
+# Virtual Environment
+.env
+.venv
+env/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+pgdata/
+
+# Logs
+logs/
+*.log
+
+# ML models and data
+*.h5
+*.pt
+*.pth
+*.onnx
+*.pb
+*.ckpt
+data/
+models/
+*.bin
+*.npy
+
+# FastAPI/Uvicorn
+*.pid
+
+# System
+Thumbs.db

@@ -1,0 +1,70 @@
+
+version: '3.8'
+
+services:
+  # 1. Сервис базы данных (PostgreSQL)
+  db:
+    image: postgres:15-alpine
+    container_name: homomap_db
+    # Переменные окружения для настройки БД
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-homomap}
+    # Проброс порта (для локального доступа, например, из pgAdmin)
+    ports:
+      - "5433:5432"
+    # Хранение данных в томе, чтобы они не терялись при перезапуске
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    # Перезапускать, если произошел сбой
+    restart: unless-stopped
+
+  # 2. Сервис нашего FastAPI-приложения
+  web:
+    build: . # Использовать локальный Dockerfile (будет создан позже)
+    container_name: homomap_api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    # Запустить web-сервис только после того, как БД будет готова
+    depends_on:
+      - db
+      - ml
+    # Переменные окружения из .env
+    env_file:
+      - .env
+#    environment:
+#      #Переменная для URL ML-сервиса, используем имя контейнера 'ml'
+#      ML_SERVICE_URL: http://ml:8000
+    restart: unless-stopped
+  # 3. Сервис для ML-части
+  ml:
+    # Используем отдельный Dockerfile для сборки
+    build:
+      context: .
+      dockerfile: ml_service/Dockerfile.ml
+    container_name: homomap_ml
+    # Команда запуска (предполагаем, что ML-FastAPI запускается из main.py)
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    volumes:
+      # Маппируем папку с ML-кодом
+      - ./ml_service:/app
+      - ./tmp:/tmp # <--- Том для временных файлов
+      # Можно добавить том для моделей, если они большие
+      # - ml_models:/app/models
+    # Проброс порта 8002 для доступа извне (для тестирования)
+    ports:
+      - "8002:8000"
+    # Переменные окружения ML-сервиса (если нужно)
+    environment:
+    #   HUGGINGFACE_CACHE: /app/cache
+     - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+# Объявление томов для персистентности данных
+volumes:
+  postgres_data:
+    # ml_models: # Раскомментировать, если используется
