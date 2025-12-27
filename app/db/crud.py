@@ -45,7 +45,15 @@ def create_project(
         title: str,
         video_path: str,
         homography_matrix=None,
+        scaled_homography_matrix=None,
+        floor_polygons=None,
+        wall_polygons=None,
         trajectory_points=None,
+        step_peaks=None,
+        scale_info=None,
+        room_dimensions=None,
+        processing_time=None,
+        preview_image=None,
         preview_path: str | None = None
 ):
     """Создает новый проект для пользователя."""
@@ -57,7 +65,15 @@ def create_project(
         video_path=video_path,
         preview_path=preview_path,
         homography_matrix=homography_matrix,
+        scaled_homography_matrix=scaled_homography_matrix,
+        floor_polygons=floor_polygons,
+        wall_polygons=wall_polygons,
         trajectory_points=trajectory_points,
+        step_peaks=step_peaks,
+        scale_info=scale_info,
+        room_dimensions=room_dimensions,
+        processing_time=processing_time,
+        preview_image=preview_image,
         status="completed"
     )
 
@@ -87,6 +103,25 @@ def delete_project(db: Session, project_id: int):
     project = db.query(Project).filter(Project.id == project_id).first()
 
     if project:
+        # Удаляем связанные файлы (видео и превью) если они существуют
+        try:
+            import os
+            # video_path и preview_path хранятся в виде "/videos/filename" и "/previews/filename"
+            if project.video_path:
+                video_fname = os.path.basename(project.video_path)
+                video_full = os.path.join("uploaded_videos", video_fname)
+                if os.path.exists(video_full):
+                    os.remove(video_full)
+                    logger.info(f"Removed video file: {video_full}")
+            if project.preview_path:
+                preview_fname = os.path.basename(project.preview_path)
+                preview_full = os.path.join("previews", preview_fname)
+                if os.path.exists(preview_full):
+                    os.remove(preview_full)
+                    logger.info(f"Removed preview file: {preview_full}")
+        except Exception as e:
+            logger.warning(f"Failed to remove project files for {project_id}: {e}")
+
         db.delete(project)
         db.commit()
         logger.info(f"Project {project_id} successfully deleted")

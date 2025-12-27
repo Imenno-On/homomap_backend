@@ -61,4 +61,4 @@ def decode_access_token(token: str) -> dict:
         algorithms=[ALGORITHM]
     )
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/users/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/users/login")

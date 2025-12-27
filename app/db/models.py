@@ -44,7 +44,15 @@ class Project(Base):
     # --- Результаты ML-части ---
     # Матрица гомографии (3x3) хранится как JSON (например, [[a,b,c],[d,e,f],[g,h,i]])
     homography_matrix = Column(JSON, nullable=True)
+    scaled_homography_matrix = Column(JSON, nullable=True)
+    floor_polygons = Column(JSON, nullable=True)
+    wall_polygons = Column(JSON, nullable=True)
     trajectory_points = Column(JSON, nullable=True)
+    step_peaks = Column(JSON, nullable=True)
+    scale_info = Column(JSON, nullable=True)  # {scale_factor, median_peak_distance, real_step_length_cm, num_peaks}
+    room_dimensions = Column(JSON, nullable=True)  # {width_m, length_m, area_sq_m}
+    processing_time = Column(JSON, nullable=True)  # {homography, step_analysis, total}
+    preview_image = Column(String, nullable=True)  # base64 изображение (опционально, обычно используем preview_path)
     # Дополнительная информация, например, точность (из документации)
     accuracy_score = Column(Float, nullable=True)
 

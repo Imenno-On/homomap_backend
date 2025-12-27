@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int
 
     ML_SERVICE_URL: str = "http://ml:8000"
+    # ML tuning
+    ML_WORKERS: int = 1
+    ML_MAX_COMPUTE_SECONDS: int = 300
+    ML_TIMEOUT: int = 900
+
+    # Frontend CORS origins (comma-separated)
+    FRONTEND_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
     # Указываем, что настройки нужно читать из файла .env
     model_config = SettingsConfigDict(env_file='.env')
 

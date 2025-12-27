@@ -12,6 +12,7 @@ class ProjectCreate(BaseModel):
 class HomographyResult(BaseModel):
     homography_matrix: List[List[float]]
     trajectory_points: List[List[float]]
+    project_id: Optional[int] = None
 
 
 class ProjectResponse(BaseModel):
@@ -21,7 +22,15 @@ class ProjectResponse(BaseModel):
     owner_id: int
 
     homography_matrix: Optional[Any] = None  # JSON (List[List[float]])
-    trajectory_points: Optional[Any] = None  # JSON
+    scaled_homography_matrix: Optional[Any] = None  # JSON (List[List[float]])
+    floor_polygons: Optional[Any] = None  # JSON (List[List[List[float]]])
+    wall_polygons: Optional[Any] = None  # JSON (List[List[List[float]]])
+    trajectory_points: Optional[Any] = None  # JSON (List[List[float]] или List[List[float, float, float]])
+    step_peaks: Optional[Any] = None  # JSON (List[float])
+    scale_info: Optional[Any] = None  # JSON (dict)
+    room_dimensions: Optional[Any] = None  # JSON (dict)
+    processing_time: Optional[Any] = None  # JSON (dict)
+    preview_image: Optional[str] = None  # base64 строка
     accuracy_score: Optional[float] = None
 
     video_path: str

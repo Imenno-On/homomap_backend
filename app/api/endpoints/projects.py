@@ -56,6 +56,15 @@ def read_project(
             detail="У вас нет доступа к этому проекту"
         )
 
+    # Логируем данные проекта для отладки
+    logger.info(f"Returning project {project_id} data:")
+    logger.info(f"  - trajectory_points: {len(project.trajectory_points) if project.trajectory_points else 0} points")
+    logger.info(f"  - step_peaks: {len(project.step_peaks) if project.step_peaks else 0} peaks")
+    logger.info(f"  - scale_info: {project.scale_info is not None}")
+    logger.info(f"  - room_dimensions: {project.room_dimensions is not None}")
+    logger.info(f"  - floor_polygons: {len(project.floor_polygons) if project.floor_polygons else 0} polygons")
+    logger.info(f"  - wall_polygons: {len(project.wall_polygons) if project.wall_polygons else 0} polygons")
+
     return project
 
 

@@ -58,10 +58,11 @@ services:
     # Проброс порта 8002 для доступа извне (для тестирования)
     ports:
       - "8002:8000"
-    # Переменные окружения ML-сервиса (если нужно)
+    # Переменные окружения ML-сервиса (через .env или явно)
+    env_file:
+      - .env
     environment:
-    #   HUGGINGFACE_CACHE: /app/cache
-     - PYTHONUNBUFFERED=1
+      - PYTHONUNBUFFERED=1
     restart: unless-stopped
 
 # Объявление томов для персистентности данных

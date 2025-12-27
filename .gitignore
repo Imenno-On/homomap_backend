@@ -1,13 +1,28 @@
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 .Python
 env/
 .venv/
 venv/
 ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
 # Virtual Environment
 .env
@@ -20,6 +35,8 @@ venv/
 .idea/
 *.swp
 *.swo
+*.sublime-project
+*.sublime-workspace
 .DS_Store
 
 # Docker
@@ -31,14 +48,20 @@ docker-compose.override.yml
 *.sqlite
 *.sqlite3
 pgdata/
+postgres_data/
 
 # Logs
 logs/
 *.log
+*.pid
 
-# ML models and data
+# Загруженные файлы (пользовательские данные)
+uploaded_videos/
+previews/
+tmp/
+
+# ML models and data (большие файлы)
 *.h5
-*.pt
 *.pth
 *.onnx
 *.pb
@@ -47,9 +70,16 @@ data/
 models/
 *.bin
 *.npy
+# Исключение: yolov8n-pose.pt нужен для работы
+!ml_service/yolov8n-pose.pt
 
 # FastAPI/Uvicorn
 *.pid
 
 # System
 Thumbs.db
+desktop.ini
+
+# Миграции (опционально, если используете Alembic)
+# alembic/versions/*.py
+# !alembic/versions/__init__.py

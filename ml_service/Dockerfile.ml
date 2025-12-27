@@ -23,4 +23,4 @@ COPY ml_service/ /app/
 EXPOSE 8000
 
 # Команда запуска ML-FastAPI, если она есть
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-lc", "uvicorn main:app --host 0.0.0.0 --port 8000 --workers ${ML_WORKERS:-1}"]

@@ -8,7 +8,9 @@ from transformers import (
 import cv2
 import open3d as o3d
 from scipy.spatial import KDTree
-
+from ultralytics import YOLO
+from collections import deque
+import math
 
 class Homography:
     def __init__(self):
@@ -231,7 +233,15 @@ class Homography:
 
         max_slopes = []  # List to store top-N planes
 
+        import time, os
+        start_time = time.time()
+        max_sec = int(os.getenv("ML_MAX_COMPUTE_SECONDS", "300"))
+
         for _ in range(iters):
+            # Если перерасход времени — выходим
+            if time.time() - start_time > max_sec:
+                print(f"RANSAC loop timeout after {max_sec}s")
+                break
             # Try to find a plane using RANSAC
             plane_model, inliers = point_cloud.segment_plane(
                 distance_threshold=10,
@@ -447,7 +457,14 @@ class Homography:
         original_height, original_width = image.shape[:2]
         original_area = original_height * original_width
 
+        import time, os
+        start_time = time.time()
+        max_sec = int(os.getenv("ML_MAX_COMPUTE_SECONDS", "300"))
+
         for iteration in range(max_iterations):
+            if time.time() - start_time > max_sec:
+                print(f"optimize_parameters timeout after {max_sec}s")
+                break
             # If distortion_step == 0, skip outer loop over distortion coefficients
             if distortion_step == 0 and iteration > 0:
                 break
@@ -457,6 +474,8 @@ class Homography:
             focal_y = initial_focal_length_y
 
             for i in range(max_iterations):
+                if time.time() - start_time > max_sec:
+                    break
                 if focal_step_x == 0 and focal_step_y == 0 and i > 0:
                     break
 
@@ -545,6 +564,12 @@ class Homography:
         wall_classes = {"wall", "building", "column, pillar", "fence", "door", "window", "wardrobe, closet, press",
                         "cabinet", "bulletin board", "mirror", "painting, picture", "curtain",
                         "bannister, banister, balustrade, balusters, handrail"}
+
+        import time, os
+
+        # Global timeout for this compute call
+        start_time = time.time()
+        max_sec = int(os.getenv("ML_MAX_COMPUTE_SECONDS", "300"))
 
         # Preprocess image
         image = self.preprocess_image(image_path)
@@ -664,6 +689,9 @@ class Homography:
                 last_valid_non_floor_points = non_floor_points
 
                 while True:
+                    if time.time() - start_time > max_sec:
+                        print(f"tilt loop timeout after {max_sec}s")
+                        break
                     # Tilt the plane
                     tilted_plane = self.tilt_plane(floor_plane_model, tilt_factor)
 
@@ -763,3 +791,177 @@ class Homography:
         H, _ = cv2.findHomography(points_on_floor, projected_local_coords)
 
         return H, floor_polygons, wall_polygons
+
+
+
+class StepAnalyzer:
+    """
+    Анализатор шагов человека на видео для калибровки масштаба
+    """
+    def __init__(self, model_path='yolov8n-pose.pt'):
+        """
+        Инициализация анализатора шагов
+        """
+        # Загрузка модели YOLO Pose
+        self.model = YOLO(model_path)
+        # Ключевые точки для стоп: 15 - левая стопа, 16 - правая стопа (в индексации YOLO)
+        self.left_foot_idx = 15
+        self.right_foot_idx = 16
+        # Параметры для фильтрации и анализа
+        self.min_confidence = 0.5
+        self.distance_history = deque(maxlen=100)  # История расстояний для анализа
+        self.peak_distances = []  # Локальные максимумы расстояний
+        self.tracking_id = None  # ID отслеживаемого человека
+
+    def detect_pose_keypoints(self, frame):
+        """
+        Детекция ключевых точек позы человека на кадре
+        """
+        results = self.model.track(frame, persist=True, verbose=False)
+        keypoints_data = []
+
+        if results and len(results) > 0:
+            result = results[0]
+            if hasattr(result, 'boxes') and result.boxes is not None:
+                boxes = result.boxes
+                if hasattr(result, 'keypoints') and result.keypoints is not None:
+                    keypoints = result.keypoints.data.cpu().numpy()
+
+                    for i, box in enumerate(boxes):
+                        confidence = box.conf.cpu().numpy()[0]
+                        if confidence > self.min_confidence:
+                            track_id = int(box.id.cpu().numpy()[0]) if box.id is not None else i
+                            bbox = box.xyxy.cpu().numpy()[0]
+                            person_keypoints = keypoints[i]
+                            keypoints_data.append({
+                                'track_id': track_id,
+                                'bbox': bbox,
+                                'keypoints': person_keypoints,
+                                'confidence': confidence
+                            })
+
+        return keypoints_data
+
+    def calculate_foot_distance(self, keypoints):
+        """
+        Вычисление расстояния между стопами человека
+        """
+        left_foot = keypoints[self.left_foot_idx]
+        right_foot = keypoints[self.right_foot_idx]
+
+        # Проверка уверенности ключевых точек
+        if left_foot[2] < self.min_confidence or right_foot[2] < self.min_confidence:
+            return None
+
+        # Вычисление евклидова расстояния между стопами
+        distance = math.sqrt(
+            (left_foot[0] - right_foot[0]) ** 2 +
+            (left_foot[1] - right_foot[1]) ** 2
+        )
+
+        return distance
+
+    def detect_peaks(self, distances, threshold=0.1):
+        """
+        Обнаружение локальных максимумов в последовательности расстояний
+        """
+        peaks = []
+        if len(distances) < 3:
+            return peaks
+
+        # Простой алгоритм обнаружения пиков: точка является пиком,
+        # если она больше соседей и превышает определенный порог
+        for i in range(1, len(distances) - 1):
+            if (distances[i] > distances[i-1] and
+                distances[i] > distances[i+1] and
+                distances[i] > np.mean(distances) * (1 - threshold)):
+                peaks.append(distances[i])
+
+        return peaks
+
+    def analyze_video_steps(self, video_path, max_frames=300):
+        """
+        Анализ видео для определения шагов человека
+        """
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            raise ValueError("Не удалось открыть видео файл")
+
+        frame_count = 0
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        total_frames = int(min(max_frames, cap.get(cv2.CAP_PROP_FRAME_COUNT)))
+
+        trajectory_points = []  # Точки траектории для визуализации
+
+        while frame_count < total_frames:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            # Детекция ключевых точек
+            keypoints_data = self.detect_pose_keypoints(frame)
+
+            if keypoints_data:
+                # Выбираем самого уверенного детекта или продолжаем трекинг
+                if self.tracking_id is None:
+                    # Берем самого уверенного детекта
+                    person = max(keypoints_data, key=lambda x: x['confidence'])
+                    self.tracking_id = person['track_id']
+                else:
+                    # Пытаемся найти человека с тем же track_id
+                    tracked_persons = [p for p in keypoints_data if p['track_id'] == self.tracking_id]
+                    if tracked_persons:
+                        person = tracked_persons[0]
+                    else:
+                        # Если потеряли трек, берем самого уверенного
+                        person = max(keypoints_data, key=lambda x: x['confidence'])
+                        self.tracking_id = person['track_id']
+
+                # Вычисляем расстояние между стопами
+                foot_distance = self.calculate_foot_distance(person['keypoints'])
+                if foot_distance is not None:
+                    self.distance_history.append(foot_distance)
+
+                    # Сохраняем центр массы для траектории
+                    bbox = person['bbox']
+                    center_x = (bbox[0] + bbox[2]) / 2
+                    center_y = (bbox[1] + bbox[3]) / 2
+                    trajectory_points.append((center_x, center_y, foot_distance))
+
+            frame_count += 1
+
+        cap.release()
+
+        # Анализируем расстояния для поиска локальных максимумов
+        if len(self.distance_history) > 10:
+            self.peak_distances = self.detect_peaks(list(self.distance_history))
+
+        return {
+            'peak_distances': self.peak_distances,
+            'trajectory_points': trajectory_points,
+            'frames_processed': frame_count,
+            'total_frames': total_frames
+        }
+
+    def calculate_scale_factor(self, real_step_length_cm=75.0):
+        """
+        Вычисление масштабного коэффициента на основе локальных максимумов
+        """
+        if not self.peak_distances:
+            return None
+
+        # Берем медиану локальных максимумов для устойчивости к выбросам
+        median_peak_distance = np.median(self.peak_distances)
+
+        if median_peak_distance <= 0:
+            return None
+
+        # Вычисляем масштаб: сколько см в одном пикселе
+        scale_factor = real_step_length_cm / median_peak_distance
+
+        return {
+            'scale_factor': scale_factor,  # см на пиксель
+            'median_peak_distance': median_peak_distance,
+            'num_peaks': len(self.peak_distances),
+            'real_step_length_cm': real_step_length_cm
+        }

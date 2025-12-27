@@ -10,3 +10,4 @@ scipy==1.11.4
 open3d==0.17.0
 numpy==1.26.2
 httpx==0.26.0
+ultralytics
